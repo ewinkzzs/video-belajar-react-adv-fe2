@@ -1,12 +1,18 @@
-import React, { useState, useEffect } from "react";
-import { Container, Form, Button, ListGroup, Row, Col, InputGroup } from "react-bootstrap";
-import { getCourses, addCourse, updateCourse, deleteCourse } from "../services/api/api";
+import React, { useEffect, useState } from "react";
+import { Container, Form, Button, ListGroup, Row, Col } from "react-bootstrap";
+import useCourseStore from "../store/store";
 import Header from "../components/Header";
 
 function Admin() {
-  const [courses, setCourses] = useState([]);
-  const [loading, setLoading] = useState(false);
-  
+  const {
+    courses,
+    fetchCourses,
+    addCourse,
+    updateCourse,
+    deleteCourse,
+    loading,
+  } = useCourseStore();
+
   const [formData, setFormData] = useState({
     id: null,
     tite: "",
@@ -18,35 +24,20 @@ function Admin() {
   const [search, setSearch] = useState("");
   const [filteredCourses, setFilteredCourses] = useState([]);
 
-  // Load data products dari API
-  const loadCourses = async () => {
-    setLoading(true);
-    try {
-      const data = await getCourses();
-      setCourses(data);
-      setFilteredCourses(data);
-    } catch (error) {
-      alert("Gagal load data");
-    }
-    setLoading(false);
-  };
+  useEffect(() => {
+    fetchCourses();
+  }, [fetchCourses]);
 
   useEffect(() => {
-    loadCourses();
-  }, []);
-
-  // Filter realtime berdasarkan search
-  useEffect(() => {
-    if (!search) {
-      setFilteredCourses(courses);
-    } else {
-      const lowerSearch = search.toLowerCase();
+    if (search === "") setFilteredCourses(courses);
+    else {
+      const lower = search.toLowerCase();
       setFilteredCourses(
         courses.filter(
           (c) =>
-            c.tite.toLowerCase().includes(lowerSearch) ||
-            c.subtitle.toLowerCase().includes(lowerSearch) ||
-            c.description.toLowerCase().includes(lowerSearch)
+            c.tite.toLowerCase().includes(lower) ||
+            c.subtitle.toLowerCase().includes(lower) ||
+            c.description.toLowerCase().includes(lower)
         )
       );
     }
@@ -54,53 +45,40 @@ function Admin() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData((p) => ({ ...p, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.tite || !formData.subtitle || !formData.price) {
-      alert("Judul, subjudul, dan harga wajib diisi");
+      alert("Isi semua field wajib");
       return;
     }
 
     try {
       if (formData.id) {
-        // Update existing course
         await updateCourse(formData.id, formData);
         alert("Produk berhasil diperbarui");
       } else {
-        // Add new course
         await addCourse(formData);
         alert("Produk berhasil ditambahkan");
       }
       setFormData({ id: null, tite: "", subtitle: "", price: "", description: "" });
-      await loadCourses();
     } catch (error) {
       alert("Gagal menyimpan data");
     }
   };
 
   const handleEdit = (course) => {
-    setFormData({
-      id: course.id,
-      tite: course.tite,
-      subtitle: course.subtitle,
-      price: course.price,
-      description: course.description || ""
-    });
+    setFormData(course);
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Yakin ingin menghapus produk ini?")) return;
+    if (!window.confirm("Yakin hapus produk ini?")) return;
     try {
       await deleteCourse(id);
       alert("Produk berhasil dihapus");
-      await loadCourses();
-    } catch (error) {
+    } catch {
       alert("Gagal menghapus produk");
     }
   };
@@ -108,7 +86,7 @@ function Admin() {
   return (
     <>
       <Header showCategory />
-      <Container style={{ maxWidth: 600, marginTop: "2rem" }}>
+      <Container style={{ maxWidth: 600, marginTop: 32 }}>
         <h3 className="mb-4 text-center">Admin Produk</h3>
 
         <Form onSubmit={handleSubmit} className="mb-4">
@@ -137,7 +115,6 @@ function Admin() {
               onChange={handleInputChange}
             />
           </Form.Group>
-          {/* Optional: description */}
           <Form.Group className="mb-3" controlId="description">
             <Form.Control
               as="textarea"
@@ -147,7 +124,7 @@ function Admin() {
               onChange={handleInputChange}
             />
           </Form.Group>
-          <Button variant="primary" type="submit" className="w-100">
+          <Button variant="primary" type="submit" className="w-100" disabled={loading}>
             {formData.id ? "Update Produk" : "Tambah Produk"}
           </Button>
         </Form>
@@ -159,43 +136,36 @@ function Admin() {
           className="mb-3"
         />
 
+        {loading && <p>Loading...</p>}
+
         <ListGroup>
-          {loading && <div className="text-center">Loading...</div>}
-          {!loading && filteredCourses.length === 0 && (
-            <div className="text-center">Tidak ada produk ditemukan.</div>
-          )}
-          {!loading &&
-            filteredCourses.map((course) => (
-              <ListGroup.Item
-                key={course.id}
-                className="d-flex justify-content-between align-items-start"
-              >
-                <div style={{ flex: "1 1 auto" }}>
-                  <h5>{course.tite}</h5>
-                  <div>{course.subtitle}</div>
-                  <div style={{ color: "green", fontWeight: "600" }}>
-                    Rp{parseFloat(course.price).toFixed(2)}
-                  </div>
+          {filteredCourses.map((course) => (
+            <ListGroup.Item
+              key={course.id}
+              className="d-flex justify-content-between align-items-start"
+            >
+              <div style={{ flex: "1 1 auto" }}>
+                <h5>{course.tite}</h5>
+                <div>{course.subtitle}</div>
+                <div style={{ color: "green", fontWeight: "600" }}>
+                  Rp{parseFloat(course.price).toFixed(2)}
                 </div>
-                <div>
-                  <Button
-                    variant="warning"
-                    size="sm"
-                    className="me-2"
-                    onClick={() => handleEdit(course)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => handleDelete(course.id)}
-                  >
-                    Hapus
-                  </Button>
-                </div>
-              </ListGroup.Item>
-            ))}
+              </div>
+              <div>
+                <Button
+                  variant="warning"
+                  size="sm"
+                  className="me-2"
+                  onClick={() => handleEdit(course)}
+                >
+                  Edit
+                </Button>
+                <Button variant="danger" size="sm" onClick={() => handleDelete(course.id)}>
+                  Hapus
+                </Button>
+              </div>
+            </ListGroup.Item>
+          ))}
         </ListGroup>
       </Container>
     </>

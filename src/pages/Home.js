@@ -4,9 +4,10 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import CourseCard from "../components/CourseCard";
 import { getCourses } from "../services/api/api";
+import useCourseStore from "../store/store";
 
 function Home() {
-  const [courses, setCourses] = useState([]);
+  const { courses, setCourses } = useCourseStore();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -14,7 +15,7 @@ function Home() {
       setLoading(true);
       try {
         const data = await getCourses();
-        setCourses(data);
+        setCourses(data);    // simpan data ke state global store
       } catch (e) {
         alert("Gagal mengambil data");
       } finally {
@@ -23,7 +24,7 @@ function Home() {
     };
 
     fetchCourses();
-  }, []);
+  }, [setCourses]);
 
   return (
     <>
@@ -66,7 +67,7 @@ function Home() {
             <Row>
               {courses.map((course) => (
                 <Col md={4} key={course.id}>
-                  <CourseCard
+                  <CourseCard 
                     course={{
                       image: course.photos,
                       title: course.tite,
@@ -75,8 +76,8 @@ function Home() {
                       instructor: {
                         name: course.mentor,
                         role: course.rolementor,
-                        avatar: course.avatar
-                      }
+                        avatar: course.avatar,
+                      },
                     }}
                   />
                 </Col>
@@ -87,6 +88,7 @@ function Home() {
           )}
         </Container>
       </section>
+
       <Footer />
     </>
   );
